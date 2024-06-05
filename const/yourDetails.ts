@@ -1,3 +1,3 @@
 // Replace this with your contract address
 export const NFT_COLLECTION_ADDRESS =
-  "0x92Cd626cA412b96dbE24ae430389Fcc879Db91Fb";
+  "0x0Ee32CEF912F61711e2f1a4F87d6460E322530B9";

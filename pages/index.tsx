@@ -7,13 +7,14 @@ import {
   Web3Button,
 } from "@thirdweb-dev/react";
 import type { NextPage } from "next";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { NFT_COLLECTION_ADDRESS } from "../const/yourDetails";
+import AvatarCanvas from "../components/AvatarCanvas";
 
 const Home: NextPage = () => {
   const address = useAddress();
 
-  // Fetch the NFT collection from thirdweb via it's contract address.
+  // Fetch the NFT collection from thirdweb via its contract address.
   const { contract: nftCollection } = useContract(
     NFT_COLLECTION_ADDRESS,
     "nft-collection"
@@ -24,17 +25,24 @@ const Home: NextPage = () => {
 
   // Here we store the user inputs for their NFT.
   const [nftName, setNftName] = useState<string>("");
+  const [hairStyle, setHairStyle] = useState<string>("short");
+
+  const canvasRef = useRef<any>();
 
   // This function calls a Next JS API route that mints an NFT with signature-based minting.
   // We send in the address of the current user, and the text they entered as part of the request.
   const mintWithSignature = async () => {
     try {
+      // Take a screenshot of the avatar from the canvas
+      const image = await canvasRef.current.takeScreenshot();
+
       // Make a request to /api/server
       const signedPayloadReq = await fetch(`/api/server`, {
         method: "POST",
         body: JSON.stringify({
           authorAddress: address, // Address of the current user
           nftName: nftName || "",
+          image: image,
         }),
       });
 
@@ -43,18 +51,22 @@ const Home: NextPage = () => {
 
       if (!signedPayloadReq.ok) {
         alert(json.error);
+        return;
       }
 
       // If the request succeeded, we'll get the signed payload from the response.
-      // The API should come back with a JSON object containing a field called signedPayload.
-      // This line of code will parse the response and store it in a variable called signedPayload.
       const signedPayload = json.signedPayload;
 
+      // Add null/undefined check for signedPayload
+      if (!signedPayload) {
+        alert("Failed to get signed payload.");
+        return;
+      }
+
       // Now we can call signature.mint and pass in the signed payload that we received from the server.
-      // This means we provided a signature for the user to mint an NFT with.
       const nft = await nftCollection?.signature.mint(signedPayload);
 
-      alert("Minted succesfully!");
+      alert("Minted successfully!");
 
       return nft;
     } catch (e) {
@@ -64,9 +76,9 @@ const Home: NextPage = () => {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.h1}>Signature-Based Minting</h1>
+      <h1 className={styles.h1}>Avatar Minting</h1>
       <p className={styles.explain}>
-        Signature-based minting with{" "}
+        Create and mint your custom avatar with{" "}
         <b>
           {" "}
           <a
@@ -78,20 +90,13 @@ const Home: NextPage = () => {
             thirdweb
           </a>
         </b>{" "}
-        + Next.JS to create a community-made NFT collection with restrictions.
-      </p>
-
-      <p>
-        Hint: We only generate signatures if your NFT name is a cool{" "}
-        <b>animal name</b>! 😉
+        + Next.JS.
       </p>
 
       <hr className={styles.divider} />
 
       <div className={styles.collectionContainer}>
-        <h2 className={styles.ourCollection}>
-          Mint your own NFT into the collection:
-        </h2>
+        <h2 className={styles.ourCollection}>Mint your own Avatar NFT:</h2>
 
         <input
           type="text"
@@ -100,6 +105,38 @@ const Home: NextPage = () => {
           maxLength={26}
           onChange={(e) => setNftName(e.target.value)}
         />
+
+        <div>
+          <label>
+            <input
+              type="radio"
+              value="short"
+              checked={hairStyle === "short"}
+              onChange={() => setHairStyle("short")}
+            />
+            Short Hair
+          </label>
+          <label>
+            <input
+              type="radio"
+              value="long"
+              checked={hairStyle === "long"}
+              onChange={() => setHairStyle("long")}
+            />
+            Long Hair
+          </label>
+          <label>
+            <input
+              type="radio"
+              value="bald"
+              checked={hairStyle === "bald"}
+              onChange={() => setHairStyle("bald")}
+            />
+            Bald
+          </label>
+        </div>
+
+        <AvatarCanvas hairStyle={hairStyle} ref={canvasRef} />
       </div>
 
       <div style={{ marginTop: 24 }}>
@@ -122,6 +159,10 @@ const Home: NextPage = () => {
           <div className={styles.nftGrid}>
             {nfts?.map((nft) => (
               <div className={styles.nftItem} key={nft.metadata.id.toString()}>
+                <ThirdwebNftMedia
+                  metadata={nft.metadata}
+                  style={{ width: 200, height: 200 }}
+                />
                 <div style={{ textAlign: "center" }}>
                   <p>Name</p>
                   <p>

@@ -1,19 +1,18 @@
 import { ThirdwebProvider } from "@thirdweb-dev/react";
 import type { AppProps } from "next/app";
 import Head from "next/head";
-import ThirdwebGuideFooter from "../components/guide/ThirdwebGuideFooter";
 import "./styles/globals.css";
+import { PolygonAmoyTestnet } from '@thirdweb-dev/chains';
 
-// This is the chain your dApp will work on.
-const activeChain = "goerli";
+const chain = PolygonAmoyTestnet
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <ThirdwebProvider activeChain={activeChain}
+    <ThirdwebProvider activeChain={chain}
     clientId={process.env.NEXT_PUBLIC_TEMPLATE_CLIENT_ID}
     >
       <Head>
-        <title>thirdweb Signature Based Minting</title>
+        <title>Avatar App</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
           name="description"
@@ -22,7 +21,7 @@ function MyApp({ Component, pageProps }: AppProps) {
         <meta name="keywords" content="thirdweb signature based minting" />
       </Head>
       <Component {...pageProps} />
-      <ThirdwebGuideFooter />
+      
     </ThirdwebProvider>
   );
 }

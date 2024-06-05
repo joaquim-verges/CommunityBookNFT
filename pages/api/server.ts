@@ -1,75 +1,61 @@
 import { ThirdwebSDK } from "@thirdweb-dev/sdk";
 import type { NextApiRequest, NextApiResponse } from "next";
-import animalNames from "../../animalNames";
 import "../styles/globals.css";
 import { NFT_COLLECTION_ADDRESS } from "../../const/yourDetails";
+import { PolygonAmoyTestnet } from '@thirdweb-dev/chains';
+
+const chain = PolygonAmoyTestnet;
 
 export default async function server(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   try {
-    // De-structure the arguments we passed in out of the request body
-    const { authorAddress, nftName } = JSON.parse(req.body);
+    const { authorAddress, nftName, image } = JSON.parse(req.body);
 
-    // You'll need to add your private key in a .env.local file in the root of your project
-    // !!!!! NOTE !!!!! NEVER LEAK YOUR PRIVATE KEY to anyone!
     if (!process.env.WALLET_PRIVATE_KEY) {
       throw new Error(
         "You're missing WALLET_PRIVATE_KEY in your .env.local file."
       );
     }
 
-    // Initialize the Thirdweb SDK on the server side
     const sdk = ThirdwebSDK.fromPrivateKey(
-      // Your wallet private key (read it in from .env.local file)
       process.env.WALLET_PRIVATE_KEY as string,
-      "goerli",
+      "80002",  // Use the correct chain ID for Mumbai Testnet
       { secretKey: process.env.TW_SECRET_KEY }
     );
 
-    // Load the NFT Collection via it's contract address using the SDK
     const nftCollection = await sdk.getContract(
-      // Use your NFT_COLLECTION_ADDRESS constant
       NFT_COLLECTION_ADDRESS,
       "nft-collection"
     );
 
-    // Here we can make all kinds of cool checks to see if the user is eligible to mint the NFT.
-    // Here are a few examples:
-
-    // 1) Check that it's an animal name from our list of animal names
-    // This demonstrates how we can restrict what kinds of NFTs we give signatures for
-    if (!animalNames.includes(nftName?.toLowerCase())) {
-      res.status(400).json({ error: "That's not one of the animals we know!" });
-      return;
+    if (!nftCollection) {
+      throw new Error("NFT Collection contract not found");
     }
 
-    // 2) Check that this wallet hasn't already minted a page - 1 NFT per wallet
-    const hasMinted = (await nftCollection.balanceOf(authorAddress)).gt(0);
-    if (hasMinted) {
-      res.status(400).json({ error: "Already minted" });
-      return;
-    }
+    const validityStartTimestamp = Math.floor(Date.now() / 1000);
+    const validityEndTimestamp = validityStartTimestamp + 24 * 60 * 60;
 
-    // If all the checks pass, begin generating the signature...
-    // Generate the signature for the page NFT
-    const signedPayload = await nftCollection.signature.generate({
+    const mintRequest = {
       to: authorAddress,
       metadata: {
         name: nftName as string,
-        description: "An awesome animal NFT",
-        properties: {
-          // Add any properties you want to store on the NFT
-        },
+        description: "A custom avatar NFT",
+        image: image,
+        properties: {},
       },
-    });
+      validityStartTimestamp,
+      validityEndTimestamp,
+    };
 
-    // Return back the signedPayload to the client.
+    const signedPayload = await nftCollection.erc721.signature.generate(mintRequest);
+
     res.status(200).json({
       signedPayload: JSON.parse(JSON.stringify(signedPayload)),
     });
   } catch (e) {
+    console.error("Server error", e);
     res.status(500).json({ error: `Server error ${e}` });
   }
 }
